@@ -5,17 +5,17 @@ window.org_vaadin_jcrop_Jcrop = function () {
 
     this.clearSelection = function () {
         jcrop_api.release();
-    }
+    };
 
     this.setSelection = function (x, y, width, height) {
         jcrop_api.setSelect([x, y, x + width, y + height]);
-    }
+    };
 
     this.onStateChange = function (e) {
         var state = this.getState();
 
         // a little hack to only reinitialized the component when needed
-        if (oldTriggerRepaintValue != state.triggerRepaint) {
+        if (oldTriggerRepaintValue !== state.triggerRepaint) {
             oldTriggerRepaintValue = state.triggerRepaint;
             // destroy and create image
             $(elem).empty();
@@ -44,27 +44,42 @@ window.org_vaadin_jcrop_Jcrop = function () {
             }
 
             // init Jcrop
-            imageElem.Jcrop(JcropOptions, function () {
-                jcrop_api = this;
-            });
+            // use Promise to avoid calling jcrop_api before it is attached
+            var promise = new Promise(
+                function(resolve, reject) {
+                    $(imageElem).Jcrop(JcropOptions, function () {
+                        jcrop_api = this;
+                        resolve();
+                    });
+                }
+            );
 
-            // set selection when state contains selection
-            if (state.cropWidth > 0 || state.cropHeight > 0) {
-                this.setSelection(state.x, state.y, state.cropWidth, state.cropHeight);
-            }
-            if (!state.enabled) {
-                jcrop_api.disable();
-            }
+            promise.then(function (value) {
+                // set selection when state contains selection
+                if (state.cropWidth > 0 || state.cropHeight > 0) {
+                    self.setSelection(state.x, state.y, state.cropWidth, state.cropHeight);
+                } else {
+                    jcrop_api.release();
+                }
+
+                if (state.enabled === false) {
+                    jcrop_api.disable();
+                } else {
+                    jcrop_api.enable();
+                }
+            });
         }
 
-        if (enabled != state.enabled) {
+        if (enabled !== state.enabled) {
             enabled = state.enabled;
-            if (enabled) {
-                jcrop_api.enable();
-            } else {
-                jcrop_api.disable();
+            if(jcrop_api) {
+                if (enabled === false) {
+                    jcrop_api.disable();
+                } else {
+                    jcrop_api.enable();
+                }
             }
         }
     }
 
-}
+};
